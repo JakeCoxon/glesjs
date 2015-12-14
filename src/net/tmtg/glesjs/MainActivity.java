@@ -105,7 +105,7 @@ public class MainActivity extends Activity {
 		public void queueTouchEvent(MotionEvent ev) {
 			synchronized (queuelock) {
 				if (motionqueue_len >= MAXQUEUELEN) return;
-				motionqueue[motionqueue_len++] = ev;
+				motionqueue[motionqueue_len++] = MotionEvent.obtain(ev);
 			}
 		}
 
@@ -119,19 +119,18 @@ public class MainActivity extends Activity {
 			// action codes.  Since 2.2, we should use getActionMasked for
 			// this.
 			// use MotionEventCompat to do this?
-			int action = me.getAction();
-			int ptridx = (action & MotionEvent.ACTION_POINTER_ID_MASK)
-						 >> MotionEvent.ACTION_POINTER_ID_SHIFT;
-			action &= MotionEvent.ACTION_MASK;
+			int action = me.getActionMasked();
+			int ptridx = me.getActionIndex();
+
 			// Default coord is the current coordinates of an arbitrary active
 			// pointer.
-			double x = me.getX();
-			double y = me.getY();
+			double x = me.getX(ptridx);
+			double y = me.getY(ptridx);
 			// on a multitouch, touches after the first touch are also
 			// considered mouse-down flanks.
 			boolean press = action == MotionEvent.ACTION_DOWN
 						 || action == MotionEvent.ACTION_POINTER_DOWN;
-			boolean down = press || action == MotionEvent.ACTION_MOVE;
+			// boolean down = press || action == MotionEvent.ACTION_MOVE;
 			// Alcatel pop:
 			// down event: 0
 			// move event: 2
@@ -181,8 +180,11 @@ public class MainActivity extends Activity {
 			// handle events in the render thread
 			synchronized (queuelock) {
 				for (int i=0; i<motionqueue_len; i++) {
-					if (motionqueue[i]!=null) handleTouchEvent(motionqueue[i]);
-					motionqueue[i] = null;
+					if (motionqueue[i]!=null) {
+						handleTouchEvent(motionqueue[i]);
+						motionqueue[i].recycle();
+						motionqueue[i] = null;
+					}
 				}
 				motionqueue_len = 0;
 			}
